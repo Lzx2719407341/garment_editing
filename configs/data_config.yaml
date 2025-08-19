@@ -1,4 +1,5 @@
 deepfashion2:
+  max_images: 1  # 设置需要处理的最大图片数量
   train_image_dir: "./garment_editing/data/raw/DeepFashion2 Dataset/train/image"
   train_annos_dir: "./garment_editing/data/raw/DeepFashion2 Dataset/train/annos"
   train_output_dir: "./garment_editing/data/processed/deepfashion2/train"
@@ -30,3 +31,4 @@ human_parsing:
 
 resize: true
 image_size: [256, 256]
+
