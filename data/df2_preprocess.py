@@ -150,11 +150,11 @@ def process_deepfashion2(image_dir, annos_dir, output_dir, single_sample=False, 
             # 标记已处理一个标注项
             processed_annotation = True
             
-            # 增加处理图片计数
-            processed_images_count += 1
+        # 增加处理图片计数
+        processed_images_count += 1
             
-            # 如果设置了最大处理图片数，且已达到限制，则停止处理
-            if max_images is not None and processed_images_count >= max_images:
+        # 如果设置了最大处理图片数，且已达到限制，则停止处理
+        if max_images is not None and processed_images_count >= max_images:
                 print(f"已处理 {processed_images_count} 张图片，达到设置的最大处理数量 {max_images}，停止处理。")
                 break
         
@@ -162,11 +162,6 @@ def process_deepfashion2(image_dir, annos_dir, output_dir, single_sample=False, 
         if single_sample:
             break
         
-        # 如果设置了最大处理图片数，且已达到限制，则停止处理
-        if max_images is not None and processed_images_count >= max_images:
-            print(f"已处理 {processed_images_count} 张图片，达到设置的最大处理数量 {max_images}，停止处理。")
-            break
-
 
 def ensure_dir_exists(dir_path):
     if not os.path.exists(dir_path):
