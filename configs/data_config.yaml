@@ -1,5 +1,7 @@
 deepfashion2:
   max_images: 1  # 设置需要处理的最大图片数量
+  output_dir: "./garment_editing/data/processed/deepfashion2"  # 基础输出目录
+
   train_image_dir: "./garment_editing/data/raw/DeepFashion2 Dataset/train/image"
   train_annos_dir: "./garment_editing/data/raw/DeepFashion2 Dataset/train/annos"
   train_output_dir: "./garment_editing/data/processed/deepfashion2/train"
@@ -9,26 +11,25 @@ deepfashion2:
   validation_output_dir: "./garment_editing/data/processed/deepfashion2/validation"
 
   test_image_dir: "./garment_editing/data/raw/DeepFashion2 Dataset/test/image"
-
-  # 兼容性保持：基础输出目录
-  output_dir: "./garment_editing/data/processed/deepfashion2"
+  test_output_dir: "./garment_editing/data/processed/deepfashion2/test"
+  
 
 human_parsing:
-  root: "./garment_editing/data/raw/Human_Parsing_Dataset"
-  output_dir: "./garment_editing/data/processed/human_parsing"
-
+  max_images: 1  # 设置需要处理的最大图片数量
+  output_dir: "D:/lzx/tongji/大三暑期课设/garment_editing/data/processed/human_parsing"  # 基础输出目录
+  # 训练集配置
   train_image_dir: "./garment_editing/data/raw/Human_Parsing_Dataset/CIHP/instance-level_human_parsing/Training/Images"
   train_annos_dir: "./garment_editing/data/raw/Human_Parsing_Dataset/CIHP/instance-level_human_parsing/Training"
-  train_output_dir: "./garment_editing/data/processed/human_parsing/train"
+  train_output_dir: "./garment_editing/data/processed/human_parsing/CIHP/train"
 
+  # 验证集配置
   validation_image_dir: "./garment_editing/data/raw/Human_Parsing_Dataset/CIHP/instance-level_human_parsing/Validation/Images"
   validation_annos_dir: "./garment_editing/data/raw/Human_Parsing_Dataset/CIHP/instance-level_human_parsing/Validation"
-  validation_output_dir: "./garment_editing/data/processed/human_parsing/validation"
+  validation_output_dir: "./garment_editing/data/processed/human_parsing/CIHP/validation"
 
+  # 测试集配置
   test_image_dir: "./garment_editing/data/raw/Human_Parsing_Dataset/CIHP/instance-level_human_parsing/Testing/Images"
-  test_annos_dir: "./garment_editing/data/raw/Human_Parsing_Dataset/CIHP/instance-level_human_parsing/Testing"
-  test_output_dir: "./garment_editing/data/processed/human_parsing/test"
+  test_output_dir: "./garment_editing/data/processed/human_parsing/CIHP/test"
 
 resize: true
 image_size: [256, 256]
-
