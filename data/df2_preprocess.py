@@ -5,8 +5,8 @@ import numpy as np
 import yaml
 
 
-def process_deepfashion2(image_dir, annos_dir, output_dir, single_sample=False, max_images=20000):
-    """提取服装 mask 和属性文本，添加single_sample参数控制是否只处理一个数据实例"""
+def process_deepfashion2(image_dir, annos_dir, output_dir, max_images=20000):
+    """提取服装 mask 和属性文本"""
     # 验证annos_dir参数有效性
     if annos_dir is None:
         raise ValueError("annos_dir参数不能为空，请检查配置文件是否正确设置")
@@ -17,33 +17,21 @@ def process_deepfashion2(image_dir, annos_dir, output_dir, single_sample=False, 
     if not json_files:
         raise FileNotFoundError(f"{annos_dir} 中没有找到 JSON 文件，请检查路径是否正确。")
     
-    # 如果只处理单个样本，只取第一个JSON文件
-    if single_sample:
-        json_files = [json_files[0]]
-        print(f"启用单样本测试模式，仅处理文件: {json_files[0]}")
-    
-    # 添加处理图片计数器
+    # 处理图片计数器
     processed_images_count = 0
     
     for json_file in json_files:
-            
         json_path = os.path.join(annos_dir, json_file)
         print(f"正在处理 JSON 文件: {json_path}")
         with open(json_path, 'r', encoding='utf-8') as f:
             annos = json.load(f)
-        print(f"JSON 文件内容: {annos.keys()}")
         
         # 遍历 JSON 文件中的每个标注项
-        processed_annotation = False
         for item_key, annotation in annos.items():
             if item_key == "source" or item_key == "pair_id":
                 continue  # 跳过非标注字段
             
-            # 如果只处理单个样本，处理完第一个有效标注项后跳出循环
-            if single_sample and processed_annotation:
-                break
-            
-            img_file_name = f"{json_file.replace('.json', '.jpg')}"  # 假设图像文件名与 JSON 文件名一致
+            img_file_name = f"{json_file.replace('.json', '.jpg')}"  # 图像文件名与 JSON 文件名一致
             img_path = os.path.normpath(os.path.join(image_dir, img_file_name))
             if not os.path.exists(img_path):
                 print(f"警告：图像 {img_path} 不存在，跳过。")
@@ -61,7 +49,7 @@ def process_deepfashion2(image_dir, annos_dir, output_dir, single_sample=False, 
                     segment = np.array(segment, dtype=np.int32).reshape(-1, 2)
                     cv2.fillPoly(mask, [segment], 255)
                 
-                # 添加mask质量控制：过滤掉面积过小的mask
+                # 过滤掉面积过小的mask
                 mask_area = np.sum(mask > 0)
                 image_area = img.shape[0] * img.shape[1]
                 if mask_area < image_area * 0.01:  # mask面积小于图像面积1%则跳过
@@ -69,27 +57,18 @@ def process_deepfashion2(image_dir, annos_dir, output_dir, single_sample=False, 
                     continue
                 
                 mask_path = os.path.join(output_dir, "garment_masks", f"{json_file.replace('.json', f'_{item_key}.png')}")
-                print(f"正在保存 mask 文件: {mask_path}")
+                ensure_dir_exists(os.path.dirname(mask_path))
                 cv2.imwrite(mask_path, mask)
-                
-                # 添加mask质量控制：过滤掉面积过小的mask
-                mask_area = np.sum(mask > 0)
-                image_area = img.shape[0] * img.shape[1]
-                if mask_area < image_area * 0.01:  # mask面积小于图像面积1%则跳过
-                    print(f"警告：图像 {img_file_name} 的mask面积过小，跳过。")
-                    continue
-                
-                mask_path = os.path.join(output_dir, "garment_masks", f"{json_file.replace('.json', f'_{item_key}.png')}")
                 print(f"正在保存 mask 文件: {mask_path}")
-                cv2.imwrite(mask_path, mask)
                 
                 # 生成边缘mask用于精确控制
                 contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 edge_mask = np.zeros_like(mask)
                 cv2.drawContours(edge_mask, contours, -1, 255, thickness=5)  # 绘制5像素宽度的边缘
                 edge_mask_path = os.path.join(output_dir, "edge_masks", f"{json_file.replace('.json', f'_{item_key}.png')}")
+                ensure_dir_exists(os.path.dirname(edge_mask_path))
                 cv2.imwrite(edge_mask_path, edge_mask)
-                
+                print(f"正在保存 edge mask 文件: {edge_mask_path}")
                 
             else:
                 print(f"警告：图像 {img_file_name} 的标注项 {item_key} 缺少 segmentation 信息，跳过。")
@@ -106,7 +85,7 @@ def process_deepfashion2(image_dir, annos_dir, output_dir, single_sample=False, 
                 prompt.append(f"style {annotation['style']}")
             prompt_text = " ".join(prompt)
             
-            # 优化文本提示：添加更详细的描述
+            # 优化文本提示：添加遮挡信息
             if "occlusion" in annotation:
                 if annotation["occlusion"] == 1:
                     prompt_text += " slightly occluded"
@@ -114,50 +93,52 @@ def process_deepfashion2(image_dir, annos_dir, output_dir, single_sample=False, 
                     prompt_text += " heavily occluded"
             
             prompt_path = os.path.join(output_dir, "prompts", f"{json_file.replace('.json', f'_{item_key}.txt')}")
-            print(f"正在保存 prompt 文件: {prompt_path}")
+            ensure_dir_exists(os.path.dirname(prompt_path))
             with open(prompt_path, "w") as f:
                 f.write(prompt_text)
+            print(f"正在保存 prompt 文件: {prompt_path}")
             
             # 保存原始图像
             original_img_path = os.path.join(output_dir, "images", f"{json_file.replace('.json', f'_{item_key}.jpg')}")
+            ensure_dir_exists(os.path.dirname(original_img_path))
             cv2.imwrite(original_img_path, img)
+            print(f"正在保存原始图像: {original_img_path}")
             
             # 保存bounding box信息
             if "bounding_box" in annotation:
                 bounding_box = annotation["bounding_box"]
                 bounding_box_path = os.path.join(output_dir, "bounding_boxes", f"{json_file.replace('.json', f'_{item_key}.txt')}")
+                ensure_dir_exists(os.path.dirname(bounding_box_path))
                 with open(bounding_box_path, "w") as f:
                     f.write(f"{bounding_box[0]} {bounding_box[1]} {bounding_box[2]} {bounding_box[3]}")  # x, y, width, height
+                print(f"正在保存 bounding box 文件: {bounding_box_path}")
             
             # 保存关键点信息
             if "landmarks" in annotation:
                 landmarks = annotation["landmarks"]
                 landmarks_path = os.path.join(output_dir, "landmarks", f"{json_file.replace('.json', f'_{item_key}.json')}")
+                ensure_dir_exists(os.path.dirname(landmarks_path))
                 with open(landmarks_path, "w") as f:
                     json.dump(landmarks, f)
+                print(f"正在保存 landmarks 文件: {landmarks_path}")
             
             # 保存类别信息
             if "category_name" in annotation:
                 category = annotation["category_name"]
                 category_path = os.path.join(output_dir, "categories", f"{json_file.replace('.json', f'_{item_key}.txt')}")
+                ensure_dir_exists(os.path.dirname(category_path))
                 with open(category_path, "w") as f:
                     f.write(category)
-            
-            # 标记已处理一个标注项
-            processed_annotation = True
-            
+                print(f"正在保存 category 文件: {category_path}")
+        
         # 增加处理图片计数
         processed_images_count += 1
-            
-        # 如果设置了最大处理图片数，且已达到限制，则停止处理
+        
+        # 达到最大处理数量时停止
         if max_images is not None and processed_images_count >= max_images:
-                print(f"已处理 {processed_images_count} 张图片，达到设置的最大处理数量 {max_images}，停止处理。")
-                break
-        
-        # 如果只处理单个样本，处理完一个文件后跳出循环
-        if single_sample:
+            print(f"已处理 {processed_images_count} 张图片，达到设置的最大处理数量 {max_images}，停止处理。")
             break
-        
+
 
 def ensure_dir_exists(dir_path):
     if not os.path.exists(dir_path):
@@ -180,7 +161,7 @@ def main(config_path):
         if max_images is not None:
             print(f"设置最大处理图片数量为: {max_images}")
         
-        # 为不同数据集创建单独的输出目录，从配置文件中读取专门的输出路径
+        # 为不同数据集创建单独的输出目录
         datasets = [
             ("train", 
              deepfashion2_config.get("train_image_dir"), 
@@ -206,31 +187,24 @@ def main(config_path):
                 print(f"警告：{dataset_name} 数据集路径不存在 - 图像目录: {image_dir}, 标注目录: {annos_dir}")
                 continue
             
-            # 如果配置文件中没有指定专门的输出目录，则回退到原有逻辑
+            # 处理输出目录
             if not dataset_output_dir:
                 dataset_output_dir = os.path.join(output_dir, dataset_name)
                 print(f"警告：{dataset_name} 数据集未配置专门的输出目录，使用默认路径: {dataset_output_dir}")
             
             # 创建输出目录结构
             ensure_dir_exists(dataset_output_dir)
-            # 保存服装mask的目录 - 用于存储提取出的服装区域掩码
             ensure_dir_exists(os.path.join(dataset_output_dir, "garment_masks"))
-            # 保存文本提示的目录 - 用于存储与服装相关的文本描述
             ensure_dir_exists(os.path.join(dataset_output_dir, "prompts"))
-            # 保存边缘mask的目录 - 用于存储服装边缘信息，便于精确编辑
             ensure_dir_exists(os.path.join(dataset_output_dir, "edge_masks"))
-            # 保存图像的目录 - 用于存储原始图像及数据增强后的图像
             ensure_dir_exists(os.path.join(dataset_output_dir, "images"))
-            # 保存边界框的目录 - 用于存储服装的边界框坐标信息
             ensure_dir_exists(os.path.join(dataset_output_dir, "bounding_boxes"))
-            # 保存关键点的目录 - 用于存储服装的关键点标注信息
             ensure_dir_exists(os.path.join(dataset_output_dir, "landmarks"))
-            # 保存类别信息的目录 - 用于存储服装的分类信息
             ensure_dir_exists(os.path.join(dataset_output_dir, "categories"))
             
             print(f"正在处理 {dataset_name} 数据集，输出到: {dataset_output_dir}")
             
-            # 处理数据集
+            # 处理数据集（不再传递single_sample参数）
             process_deepfashion2(
                 image_dir,
                 annos_dir,
@@ -241,6 +215,6 @@ def main(config_path):
 if __name__ == "__main__":
     import sys
     if len(sys.argv) != 2:
-        print("Usage: python preprocess.py <config_path>")
+        print("Usage: python df2_preprocess.py <config_path>")
         sys.exit(1)
     main(sys.argv[1])
