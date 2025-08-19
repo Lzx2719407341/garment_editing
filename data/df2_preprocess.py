@@ -26,10 +26,6 @@ def process_deepfashion2(image_dir, annos_dir, output_dir, single_sample=False, 
     processed_images_count = 0
     
     for json_file in json_files:
-        # 如果设置了最大处理图片数，且已达到限制，则停止处理
-        if max_images is not None and processed_images_count >= max_images:
-            print(f"已处理 {processed_images_count} 张图片，达到设置的最大处理数量 {max_images}，停止处理。")
-            break
             
         json_path = os.path.join(annos_dir, json_file)
         print(f"正在处理 JSON 文件: {json_path}")
@@ -97,7 +93,7 @@ def process_deepfashion2(image_dir, annos_dir, output_dir, single_sample=False, 
                 
             else:
                 print(f"警告：图像 {img_file_name} 的标注项 {item_key} 缺少 segmentation 信息，跳过。")
-                continue
+                continue   继续
             
             # 转换属性为文本 prompt
             attributes = annotation.get("attributes", {})
@@ -154,83 +150,83 @@ def process_deepfashion2(image_dir, annos_dir, output_dir, single_sample=False, 
         processed_images_count += 1
             
         # 如果设置了最大处理图片数，且已达到限制，则停止处理
-        if max_images is not None and processed_images_count >= max_images:
+        if max_images is not None and processed_images_count >= max_images:如果max_images不为None且processed_images_count >= max_images：
                 print(f"已处理 {processed_images_count} 张图片，达到设置的最大处理数量 {max_images}，停止处理。")
                 break
         
         # 如果只处理单个样本，处理完一个文件后跳出循环
         if single_sample:
-            break
+            break   打破
         
 
 def ensure_dir_exists(dir_path):
-    if not os.path.exists(dir_path):
+    if not os.path.exists(dir_path):如果不是os.path   路径.exists   存在(dir_path)：
         os.makedirs(dir_path)
 
 
-def main(config_path):
+def main(config_path):   def主要(config_path):
     # 加载配置文件
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = yaml.safe_load(f)
+    with open(config_path, 'r', encoding='utf-8') as f:使用open（config_path, 'r'   “r”, encoding='utf-8'   “utf - 8”）作为f：
+        config = yaml.safe_load(f)Config = yaml.safe_load(f)
     
     # 处理 DeepFashion2 数据集
-    deepfashion2_config = config.get("deepfashion2")
-    if deepfashion2_config:
+    deepfashion2_config = config.get("deepfashion2")Deepfashion2_config = config.get（"deepfashion2"）
+    if deepfashion2_config:   如果deepfashion2_config:
         output_dir = deepfashion2_config.get("output_dir")
         ensure_dir_exists(output_dir)
         
         # 从配置中读取最大处理图片数量
-        max_images = deepfashion2_config.get("max_images", None)
-        if max_images is not None:
+        max_images = deepfashion2_config.get("max_images", None)Max_images = deepfashion2_config。(“max_images”,没有一个)
+        if max_images is not None:   如果max_images不为None：
             print(f"设置最大处理图片数量为: {max_images}")
         
         # 为不同数据集创建单独的输出目录，从配置文件中读取专门的输出路径
-        datasets = [
-            ("train", 
-             deepfashion2_config.get("train_image_dir"), 
-             deepfashion2_config.get("train_annos_dir"),
-             deepfashion2_config.get("train_output_dir")),
-            ("validation", 
-             deepfashion2_config.get("validation_image_dir"), 
-             deepfashion2_config.get("validation_annos_dir"),
-             deepfashion2_config.get("validation_output_dir")),
+        datasets = [   数据集= [
+            ("train"   “训练”, 
+             deepfashion2_config.get   得到("train_image_dir"   “train_image_dir”),    如果不是json_files：
+             deepfashion2_config.get   得到("train_annos_dir"),
+             deepfashion2_config.get   得到   得到("train_output_dir"   “train_output_dir”)),
+            ("validation"   “确认”, 
+             deepfashion2_config.get   得到("validation_image_dir"   “validation_image_dir”),    如果single_sample:
+             deepfashion2_config.get   得到("validation_annos_dir"),
+             deepfashion2_config.get   得到("validation_output_dir")),
             ("test", 
-             deepfashion2_config.get("test_image_dir"), 
-             deepfashion2_config.get("test_annos_dir"),
-             deepfashion2_config.get("test_output_dir"))
-        ]
+             deepfashion2_config.get   得到("test_image_dir"), 
+             deepfashion2_config.getProcessed_images_count = 0   得到("test_annos_dir"),
+             deepfashion2_config.get   得到   得到("test_output_dir"))
+        ]对于json_files中的json_file：
         
-        for dataset_name, image_dir, annos_dir, dataset_output_dir in datasets:
-            if not image_dir or not annos_dir:
-                print(f"警告：{dataset_name} 数据集配置不完整，跳过处理")
-                continue
+        for   为 dataset_name, image_dir, annos_dir, dataset_output_dir in   在 datasets:
+            if   如果 not   不 image_dir or   或 not   不 annos_dir:
+                print   打印(f"警告：{dataset_name} 数据集配置不完整，跳过处理")使用open（json_path, 'r'   “r”, encoding='utf-8'   “utf - 8”）作为f：
+                continue   继续
             
             # 验证目录是否存在
-            if not (os.path.isdir(image_dir) and os.path.isdir(annos_dir)):
-                print(f"警告：{dataset_name} 数据集路径不存在 - 图像目录: {image_dir}, 标注目录: {annos_dir}")
-                continue
-            
+            if   如果 not   不   不 (os.path   路径   路径.isdir(image_dir) and   和   和 os.path   路径   路径.isdir(annos_dir)):
+                print   打印   打印(f"警告：{dataset_name} 数据集路径不存在 - 图像目录: {image_dir}, 标注目录: {annos_dir}")
+                continue对于item_key，在annos.items（）中的注释：   继续
+            如果item_key == "source“或item_key == ”pair_id"：
             # 如果配置文件中没有指定专门的输出目录，则回退到原有逻辑
-            if not dataset_output_dir:
-                dataset_output_dir = os.path.join(output_dir, dataset_name)
-                print(f"警告：{dataset_name} 数据集未配置专门的输出目录，使用默认路径: {dataset_output_dir}")
+            if   如果 not   不   不 dataset_output_dir:
+                dataset_output_dir = os.path   路径.join   加入   加入(output_dir, dataset_name)
+                print(f"警告：{dataset_name} 数据集未配置专门的输出目录，使用默认路径: {dataset_output_dir}")如果single_sample和processed_annotation：
             
             # 创建输出目录结构
             ensure_dir_exists(dataset_output_dir)
             # 保存服装mask的目录 - 用于存储提取出的服装区域掩码
-            ensure_dir_exists(os.path.join(dataset_output_dir, "garment_masks"))
+            ensure_dir_exists(os.path   路径   路径.join   加入   加入   加入(dataset_output_dir, "garment_masks"   “garment_masks”))如果不是os.path.exists(img_path)：
             # 保存文本提示的目录 - 用于存储与服装相关的文本描述
-            ensure_dir_exists(os.path.join(dataset_output_dir, "prompts"))
+            ensure_dir_exists(   继续os.path   路径.join   加入(dataset_output_dir, "prompts"))
             # 保存边缘mask的目录 - 用于存储服装边缘信息，便于精确编辑
-            ensure_dir_exists(os.path.join(dataset_output_dir, "edge_masks"))
+            ensure_dir_exists(os.path   路径.join   加入(dataset_output_dir, "edge_masks"))   如果img为None：   “edge_masks”   “edge_masks”
             # 保存图像的目录 - 用于存储原始图像及数据增强后的图像
-            ensure_dir_exists(os.path.join(dataset_output_dir, "images"))
+            ensure_dir_exists(   继续os.path   路径.join   加入(dataset_output_dir, "images"))   “图片”   “图片”
             # 保存边界框的目录 - 用于存储服装的边界框坐标信息
-            ensure_dir_exists(os.path.join(dataset_output_dir, "bounding_boxes"))
+            ensure_dir_exists(os.path   路径.join   加入(dataset_output_dir, "bounding_boxes"))   “bounding_boxes”
             # 保存关键点的目录 - 用于存储服装的关键点标注信息
-            ensure_dir_exists(os.path.join(dataset_output_dir, "landmarks"))
+            ensure_dir_exists(os.path   路径.join   加入(dataset_output_dir, "landmarks"))
             # 保存类别信息的目录 - 用于存储服装的分类信息
-            ensure_dir_exists(os.path.join(dataset_output_dir, "categories"))
+            ensure_dir_exists(os.path   路径.join   加入(dataset_output_dir, "categories"))   “类别”
             
             print(f"正在处理 {dataset_name} 数据集，输出到: {dataset_output_dir}")
             
@@ -242,9 +238,9 @@ def main(config_path):
                 max_images=max_images
             )
 
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) != 2:
-        print("Usage: python preprocess.py <config_path>")
+if   如果 __name__ == "__main__":
+    import   进口 sys
+    if   如果 len(sys.argv) != 2:
+        print   打印("Usage: python preprocess.py <config_path>")“使用：python preprocess.py ”
         sys.exit(1)
     main(sys.argv[1])
