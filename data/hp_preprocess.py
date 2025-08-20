@@ -5,8 +5,8 @@ import numpy as np
 import yaml
 from PIL import Image
 
-# 定义人体部分颜色映射（来自提供的human_colormap）
-HUMAN_COLORMAP = [
+# 定义人体部分颜色映射（转换为NumPy数组，加速向量化操作）
+HUMAN_COLORMAP = np.array([
     [0, 0, 0],           # 0: 背景
     [128, 0, 0],         # 1: 帽子
     [255, 0, 0],         # 2: 头发
@@ -27,18 +27,10 @@ HUMAN_COLORMAP = [
     [170, 255, 85],      # 17: 右肩
     [255, 255, 0],       # 18: 左手
     [255, 170, 0]        # 19: 右手
-]
+], dtype=np.uint8)
 
-# 非服装区域（需要保留的人体结构）
-NON_GARMENT_CLASSES = [2, 11, 12, 13, 14, 15, 16, 17, 18, 19]  # 头发、脸、四肢等
-
-
-def color_to_class_idx(color):
-    """将颜色值转换为类别索引"""
-    for idx, cmap in enumerate(HUMAN_COLORMAP):
-        if np.allclose(color, cmap, atol=1):
-            return idx
-    return 0  # 默认为背景
+# 非服装区域（需要保留的人体结构，用集合加速查找）
+NON_GARMENT_CLASSES = {2, 11, 12, 13, 14, 15, 16, 17, 18, 19}  # 头发、脸、四肢等
 
 
 def process_human_parsing(image_dir, annos_dir, output_dir, max_images=20000, is_test=False):
@@ -92,19 +84,22 @@ def process_human_parsing(image_dir, annos_dir, output_dir, max_images=20000, is
         img_save_path = os.path.normpath(os.path.join(output_dir, "images", img_file_name))
         ensure_dir_exists(os.path.dirname(img_save_path))  # 确保目录存在
         cv2.imwrite(img_save_path, img)
-        print(f"已保存原始图像: {img_save_path}")
+        # 减少打印频率，每100个样本打印一次原始图像保存信息
+        if processed_count % 100 == 0:
+            print(f"已保存原始图像: {img_save_path}")
 
         # 测试集无标注目录时，不生成mask，直接跳过
         if is_test and (annos_dir is None or not os.path.isdir(annos_dir)):
             processed_count += 1
-            print(f"测试集无标注，仅保存原始图像（已处理 {processed_count} 个样本）")
+            if processed_count % 100 == 0:
+                print(f"测试集无标注，已处理 {processed_count} 个样本")
         else:
             # 以下为有标注时的mask生成逻辑（非测试集或有标注的测试集）
             h, w = img.shape[:2]
             human_mask = np.zeros((h, w), dtype=np.uint8)
 
             if not is_test:
-                # 非测试集：基于标注生成mask
+                # 非测试集：基于标注生成mask（核心优化部分）
                 category_file_name = f"{img_id}.png"
                 category_path = os.path.normpath(os.path.join(annos_dir, "Categories", category_file_name))
                 if not os.path.exists(category_path):
@@ -114,15 +109,22 @@ def process_human_parsing(image_dir, annos_dir, output_dir, max_images=20000, is
                 if category_img is None:
                     print(f"警告：无法读取类别标注 {category_path}，跳过。")
                     continue
-                category_img = cv2.cvtColor(category_img, cv2.COLOR_BGR2RGB)
+                category_img = cv2.cvtColor(category_img, cv2.COLOR_BGR2RGB)  # 转为RGB格式
 
-                # 生成非服装区域mask
-                for i in range(h):
-                    for j in range(w):
-                        color = category_img[i, j]
-                        class_idx = color_to_class_idx(color)
-                        if class_idx in NON_GARMENT_CLASSES:
-                            human_mask[i, j] = 255
+                # 向量化处理：替代双重循环
+                # 1. 将图像像素重塑为 (h*w, 3)，便于批量计算
+                pixels = category_img.reshape(-1, 3)  # 形状：(h*w, 3)
+                
+                # 2. 计算每个像素与所有颜色的欧氏距离（向量化操作）
+                # 差异形状：(h*w, 20)，每个元素是像素与对应颜色的距离
+                differences = np.linalg.norm(pixels[:, None] - HUMAN_COLORMAP, axis=2)
+                
+                # 3. 找到最小距离对应的类别索引（形状：(h*w,)）
+                class_indices = np.argmin(differences, axis=1)
+                
+                # 4. 判断是否为非服装类别，生成mask（向量化判断）
+                is_non_garment = np.isin(class_indices, list(NON_GARMENT_CLASSES))
+                human_mask = is_non_garment.reshape(h, w).astype(np.uint8) * 255  # 转为0/255的mask
 
                 # 过滤过小mask
                 mask_area = np.sum(human_mask > 0)
@@ -131,26 +133,26 @@ def process_human_parsing(image_dir, annos_dir, output_dir, max_images=20000, is
                     print(f"警告：图像 {img_file_name} 的人体mask面积过小，跳过。")
                     continue
             else:
-                # 测试集有标注目录时（特殊情况）：按原逻辑生成默认mask
+                # 测试集有标注目录时（特殊情况）：生成默认全图人体mask
                 human_mask = np.ones((h, w), dtype=np.uint8) * 255
-                print(f"测试集有标注目录，生成默认全图人体mask")
+                if processed_count % 100 == 0:
+                    print(f"测试集有标注目录，生成默认全图人体mask")
 
             # 保存human_mask和edge_mask（仅在有标注时执行）
             mask_path = os.path.normpath(os.path.join(output_dir, "human_masks", f"{img_id}.png"))
             ensure_dir_exists(os.path.dirname(mask_path))
             cv2.imwrite(mask_path, human_mask)
-            print(f"已保存人体mask: {mask_path}")
-
+            
             contours, _ = cv2.findContours(human_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             edge_mask = np.zeros_like(human_mask)
             cv2.drawContours(edge_mask, contours, -1, 255, thickness=3)
             edge_mask_path = os.path.normpath(os.path.join(output_dir, "edge_masks", f"{img_id}.png"))
             ensure_dir_exists(os.path.dirname(edge_mask_path))
             cv2.imwrite(edge_mask_path, edge_mask)
-            print(f"已保存边缘mask: {edge_mask_path}")
-
+            
             processed_count += 1
-            print(f"已处理 {processed_count} 个样本")
+            if processed_count % 100 == 0:
+                print(f"已处理 {processed_count} 个样本（保存mask: {mask_path}）")
 
         # 所有数据集（包括测试集）均受max_images限制，达到上限则停止
         if max_images is not None and processed_count >= max_images:
