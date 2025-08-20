@@ -111,7 +111,7 @@ def process_human_parsing(image_dir, annos_dir, output_dir, max_images=20000, is
                     continue
                 category_img = cv2.cvtColor(category_img, cv2.COLOR_BGR2RGB)  # 转为RGB格式
 
-                # 向量化处理：替代双重循环
+                # 向量化处理
                 # 1. 将图像像素重塑为 (h*w, 3)，便于批量计算
                 pixels = category_img.reshape(-1, 3)  # 形状：(h*w, 3)
                 
